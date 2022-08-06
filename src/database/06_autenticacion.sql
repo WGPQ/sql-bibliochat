@@ -12,9 +12,11 @@ BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
        SELECT false as exito,'0' as id_usuario,@text message; 
   END;
-  IF EXISTS(SELECT * FROM tbl_usuario WHERE correo = _correo and clave = PASSWORD(_clave)) THEN
 
-    SET _id_usuario_rol =  (SELECT ur.id FROM tbl_usuario u,tbl_usuario_rol ur WHERE correo=_correo AND u.id=ur.id_usuario);
+  IF EXISTS(SELECT * FROM tbl_usuario WHERE correo = _correo) THEN
+   IF(_clave IS NOT NULL AND CHAR_LENGTH(TRIM(_clave)) > 0)THEN  
+  IF EXISTS(SELECT * FROM tbl_usuario WHERE correo = _correo AND  clave = PASSWORD(_clave))THEN
+SET _id_usuario_rol =  (SELECT ur.id FROM tbl_usuario u,tbl_usuario_rol ur WHERE correo=_correo AND u.id=ur.id_usuario);
 
     IF (SELECT activo FROM tbl_usuario_rol WHERE id=_id_usuario_rol) IS true THEN
        UPDATE tbl_usuario_rol SET conectado=1, conectedAt=NOW() WHERE id=_id_usuario_rol;
@@ -23,7 +25,21 @@ BEGIN
      SELECT false as exito, '0' as id_usuario, 'Cuenta desactivado pongase en contacto con el Administrador' as message;
     end if;
   else
-    SELECT false as exito, '0' as id_usuario, 'correo o clave incorrecta' as message;
+     SELECT false as exito, '0' as id_usuario, 'Contraseña incorrecta' as message;
+  end IF;
+   else 
+SET _id_usuario_rol =  (SELECT ur.id FROM tbl_usuario u,tbl_usuario_rol ur WHERE correo=_correo AND u.id=ur.id_usuario);
+
+    IF (SELECT activo FROM tbl_usuario_rol WHERE id=_id_usuario_rol) IS true THEN
+       UPDATE tbl_usuario_rol SET conectado=1, conectedAt=NOW() WHERE id=_id_usuario_rol;
+    SELECT true as exito, _id_usuario_rol as id_usuario, 'Ingreso correcto' as message;
+    else
+     SELECT false as exito, '0' as id_usuario, 'Cuenta desactivado pongase en contacto con el Administrador' as message;
+    end if;
+
+   end IF;
+  else
+    SELECT false as exito, '0' as id_usuario, 'Correo incorrecto' as message;
   end if;
  END
 $$
@@ -196,7 +212,7 @@ BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
        SELECT false as exito,@text message; 
   END;
- SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.telefono, u.correo, CONVERT(ur.id_rol,CHAR) as rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND ur.conectado=1 AND u.id=ur.id_usuario AND ur.id_rol=_id_rol;
+ SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo, CONVERT(ur.id_rol,CHAR) as rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND ur.conectado=1 AND u.id=ur.id_usuario AND ur.id_rol=_id_rol;
 
 
 END

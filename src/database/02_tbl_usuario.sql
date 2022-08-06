@@ -3,8 +3,9 @@
 CREATE TABLE tbl_usuario(
   id INT NOT NULL AUTO_INCREMENT UNIQUE,
   foto              VARCHAR(100),
-	nombres           VARCHAR(60) NOT NULL,
-	apellidos         VARCHAR(60) NOT NULL,
+	nombres           VARCHAR(60),
+	apellidos         VARCHAR(60),
+  nombre_completo   VARCHAR (120), 
 	telefono          VARCHAR(15) ,
 	correo            VARCHAR(100) NOT NULL,
 	clave             VARCHAR(100),
@@ -29,18 +30,22 @@ CREATE PROCEDURE sp_insertar_usuario (_nombres VARCHAR(60), _apellidos VARCHAR(6
 BEGIN
     DECLARE  _id_usuario int;
     DECLARE  _id_usuario_rol int;
-    -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,CONCAT("Ya existe una cuenta registrada con el correo: ",_correo)  message; 
-     DECLARE EXIT HANDLER FOR SQLEXCEPTION
+        -- exit if the duplicate key occurs
+ DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al insertar el registro"  message; 
+ 
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
        SELECT false as exito,@text message; 
   END;
-
+  IF EXISTS(SELECT * FROM tbl_usuario WHERE correo=_correo) THEN
+ SELECT false as exito,CONCAT("Ya existe una cuenta registrada con el correo: ",_correo) as message; 
+  else
    IF (SELECT deletedAt FROM tbl_rol WHERE id=_id_rol) IS NULL AND EXISTS(SELECT * FROM tbl_rol WHERE id=_id_rol) THEN  
   INSERT INTO tbl_usuario
         (nombres,
         apellidos,
+        nombre_completo,
         telefono,
         correo,
         clave,
@@ -50,6 +55,7 @@ BEGIN
      VALUES
       (_nombres,
         _apellidos,
+        CONCAT(_nombres," ",_apellidos),
         _telefono,
         _correo,
         PASSWORD(_clave),
@@ -83,6 +89,7 @@ BEGIN
     else
   SELECT false as exito, 'Error no puede asignar un rol que no existe' as message;
  end IF;
+ end IF;
 
  END
 $$
@@ -97,19 +104,22 @@ $$
 -- ACTUALIZAR usuario con su rol
 -- DROP PROCEDURE IF EXISTS sp_actualizar_usuario;
 
+
 DELIMITER $$
 CREATE PROCEDURE sp_actualizar_usuario (_id_usuario_rol INT,_nombres VARCHAR(60), _apellidos VARCHAR(60),_telefono VARCHAR(15),_correo VARCHAR(50),_activo BOOLEAN,_path_foto VARCHAR(300),_id_rol INT,_updatedBy INT)
 
 BEGIN
   DECLARE _id_usuario int;   
   -- exit if the duplicate key occurs
-  DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,CONCAT("Ya existe una cuenta registrada con el correo: ",_correo)  message; 
- 
+  DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al actualizar el registro"  message;  
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
        SELECT false as exito,@text message; 
   END;
+    IF EXISTS(SELECT * FROM tbl_usuario u,tbl_usuario_rol ur WHERE u.id=ur.id_usuario AND u.correo=_correo AND ur.id<>_id_usuario_rol) THEN
+ SELECT false as exito,CONCAT("Ya existe una cuenta registrada con el correo: ",_correo) as message; 
+  else
   IF (SELECT deletedAt FROM tbl_usuario_rol WHERE id=_id_usuario_rol) IS NULL AND EXISTS(SELECT * FROM tbl_usuario_rol WHERE id=_id_usuario_rol) THEN
  
    IF (SELECT deletedAt FROM tbl_rol WHERE id=_id_rol) IS NULL AND EXISTS(SELECT * FROM tbl_rol WHERE id=_id_rol) THEN  
@@ -120,6 +130,7 @@ BEGIN
   UPDATE tbl_usuario SET
         nombres=_nombres,
         apellidos=_apellidos,
+        nombre_completo= CONCAT(_nombres," ",_apellidos),
         telefono=_telefono,
         correo=_correo,
         foto=_path_foto,
@@ -134,6 +145,7 @@ BEGIN
  end IF;
   else
    SELECT false as exito,'El registro que desea actualizar no existe' as message; 
+  end IF;
   end IF;
 
  END
@@ -188,7 +200,7 @@ IF _rol IS NOT NULL AND CHAR_LENGTH(TRIM(_rol)) > 0  then
    SET _orderBy = " ORDER BY u.id ASC ";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(ur.id,CHAR) as id , ur.verificado, u.foto, u.nombres, u.apellidos, u.telefono, u.correo, CONVERT(r.id,CHAR) as rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE ur.deletedAt IS NULL AND u.deletedAt IS NULL AND u.id=ur.id_usuario AND r.id=ur.id_rol ",
+ SET _selectQuery = CONCAT("SELECT CONVERT(ur.id,CHAR) as id , ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo, CONVERT(r.id,CHAR) as rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE ur.deletedAt IS NULL AND u.deletedAt IS NULL AND u.id=ur.id_usuario AND r.id=ur.id_rol ",
   _rolBy,_auxQuery,_orderBy," LIMIT ",_limit," OFFSET ",_offset);
 
   PREPARE stmt1 FROM _selectQuery; 
@@ -218,7 +230,7 @@ BEGIN
   END;
  SET _id_usuario = (SELECT id_usuario FROM tbl_usuario_rol WHERE id=_id_usuario_rol);
 
- SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.telefono, u.correo, CONVERT(r.id,CHAR) as rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND u.id=_id_usuario AND u.id=ur.id_usuario AND r.id=ur.id_rol;
+ SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo, CONVERT(r.id,CHAR) as rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND u.id=_id_usuario AND u.id=ur.id_usuario AND r.id=ur.id_rol;
 
 END
 $$

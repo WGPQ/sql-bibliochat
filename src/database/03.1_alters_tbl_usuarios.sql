@@ -1,7 +1,7 @@
 
 -- ALTER TABLE USUARIO
-ALTER TABLE tbl_usuario
-ADD CONSTRAINT pk_unique_correo UNIQUE (correo);
+-- ALTER TABLE tbl_usuario
+-- ADD CONSTRAINT pk_unique_correo UNIQUE (correo);
 
 
 ALTER TABLE tbl_usuario
