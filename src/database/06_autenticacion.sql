@@ -212,7 +212,7 @@ BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
        SELECT false as exito,@text message; 
   END;
- SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo, CONVERT(ur.id_rol,CHAR) as rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND ur.conectado=1 AND u.id=ur.id_usuario AND ur.id_rol=_id_rol;
+ SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo,u.rol, CONVERT(ur.id_rol,CHAR) as id_rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND ur.conectado=1 AND u.id=ur.id_usuario AND ur.id_rol=_id_rol;
 
 
 END

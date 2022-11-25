@@ -9,6 +9,7 @@ CREATE TABLE tbl_usuario(
 	telefono          VARCHAR(15) ,
 	correo            VARCHAR(100) NOT NULL,
 	clave             VARCHAR(100),
+  rol               VARCHAR(100),
   createdBy         INT,
   updatedBy         INT,
   deletedBy         INT,
@@ -30,6 +31,7 @@ CREATE PROCEDURE sp_insertar_usuario (_nombres VARCHAR(60), _apellidos VARCHAR(6
 BEGIN
     DECLARE  _id_usuario int;
     DECLARE  _id_usuario_rol int;
+    DECLARE _rol VARCHAR(100);
         -- exit if the duplicate key occurs
  DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al insertar el registro"  message; 
  
@@ -42,6 +44,7 @@ BEGIN
  SELECT false as exito,CONCAT("Ya existe una cuenta registrada con el correo: ",_correo) as message; 
   else
    IF (SELECT deletedAt FROM tbl_rol WHERE id=_id_rol) IS NULL AND EXISTS(SELECT * FROM tbl_rol WHERE id=_id_rol) THEN  
+  SET _rol=(SELECT nombre FROM tbl_rol WHERE id=_id_rol);
   INSERT INTO tbl_usuario
         (nombres,
         apellidos,
@@ -50,6 +53,7 @@ BEGIN
         correo,
         clave,
         foto,
+        rol,
         createdBy,
         createdAt)
      VALUES
@@ -60,6 +64,7 @@ BEGIN
         _correo,
         PASSWORD(_clave),
         _path_foto,
+        _rol,
         _createdBy,
          NOW());
 
@@ -110,6 +115,7 @@ CREATE PROCEDURE sp_actualizar_usuario (_id_usuario_rol INT,_nombres VARCHAR(60)
 
 BEGIN
   DECLARE _id_usuario int;   
+  DECLARE _rol VARCHAR(100);
   -- exit if the duplicate key occurs
   DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al actualizar el registro"  message;  
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -126,7 +132,7 @@ BEGIN
    SET _id_usuario = (SELECT id_usuario FROM tbl_usuario_rol WHERE id=_id_usuario_rol);
   
   UPDATE  tbl_usuario_rol SET activo=_activo,id_rol=_id_rol,updatedBy=_updatedBy, updatedAt=NOW() WHERE id=_id_usuario_rol;
-
+   SET _rol=(SELECT nombre FROM tbl_rol WHERE id=_id_rol);
   UPDATE tbl_usuario SET
         nombres=_nombres,
         apellidos=_apellidos,
@@ -134,6 +140,7 @@ BEGIN
         telefono=_telefono,
         correo=_correo,
         foto=_path_foto,
+        rol=_rol,
         updatedBy=_updatedBy,
         updatedAt=NOW()
      WHERE 
@@ -200,7 +207,7 @@ IF _rol IS NOT NULL AND CHAR_LENGTH(TRIM(_rol)) > 0  then
    SET _orderBy = " ORDER BY u.id ASC ";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(ur.id,CHAR) as id , ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo, CONVERT(r.id,CHAR) as rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE ur.deletedAt IS NULL AND u.deletedAt IS NULL AND u.id=ur.id_usuario AND r.id=ur.id_rol ",
+ SET _selectQuery = CONCAT("SELECT CONVERT(ur.id,CHAR) as id , ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo, u.rol, CONVERT(r.id,CHAR) as id_rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE ur.deletedAt IS NULL AND u.deletedAt IS NULL AND u.id=ur.id_usuario AND r.id=ur.id_rol ",
   _rolBy,_auxQuery,_orderBy," LIMIT ",_limit," OFFSET ",_offset);
 
   PREPARE stmt1 FROM _selectQuery; 
@@ -230,7 +237,7 @@ BEGIN
   END;
  SET _id_usuario = (SELECT id_usuario FROM tbl_usuario_rol WHERE id=_id_usuario_rol);
 
- SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo, CONVERT(r.id,CHAR) as rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND u.id=_id_usuario AND u.id=ur.id_usuario AND r.id=ur.id_rol;
+ SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo,u.rol, CONVERT(r.id,CHAR) as id_rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND u.id=_id_usuario AND u.id=ur.id_usuario AND r.id=ur.id_rol;
 
 END
 $$

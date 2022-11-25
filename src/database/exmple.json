@@ -1,0 +1,27 @@
+{
+    {
+        "Requestor": {
+            "activityId": null,
+            "user": {
+                "id": "bd2f460d-f8c4-44d0-904c-0f11ac845807",
+                "name": "User",
+                "aadObjectId": null,
+                "role": "user"
+            },
+            "bot": null,
+            "conversation": {
+                "isGroup": null,
+                "conversationType": null,
+                "id": "7176d371-485b-11ed-b4f2-a7e776274c71|livechat",
+                "name": null,
+                "aadObjectId": null,
+                "role": null,
+                "tenantId": null
+            },
+            "channelId": "emulator",
+            "locale": null,
+            "serviceUrl": "https://b3a7-157-100-141-93.ngrok.io"
+        },
+        "ConnectionRequestTime": "2022-10-10T05:22:37.3957453Z"
+    }
+}

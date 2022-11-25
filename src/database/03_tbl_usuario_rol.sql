@@ -2,8 +2,8 @@
 
 CREATE TABLE tbl_usuario_rol(
     id          INT NOT NULL AUTO_INCREMENT UNIQUE,
-	  id_usuario  INT NOT NULL,
-	  id_rol      INT NOT NULL,
+	id_usuario  INT NOT NULL,
+	id_rol      INT NOT NULL,
     activo      BOOLEAN NOT NULL,
     verificado  BOOLEAN NOT NULL,
     conectado    BOOLEAN NOT NULL,
