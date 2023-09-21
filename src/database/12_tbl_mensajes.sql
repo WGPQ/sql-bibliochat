@@ -76,7 +76,7 @@ DECLARE _id_message VARCHAR(10);
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
+       SELECT false as exito, "0" as id, @text message; 
   END;
  IF EXISTS (SELECT * FROM tbl_chat WHERE id=_id_chat AND deletedAt IS NULL) THEN
    INSERT INTO
@@ -97,9 +97,9 @@ DECLARE _id_message VARCHAR(10);
         _createdBy,
       NOW());
        set _id_message   = LAST_INSERT_ID();
-      SELECT true as exito,CONCAT('Mensaje guardado correctamente -',CONVERT(_id_message,CHAR)) as message; 
+      SELECT true as exito ,CONVERT(_id_message,CHAR) as id ,CONCAT('Mensaje guardado correctamente -',CONVERT(_id_message,CHAR)) as message; 
 else
-SELECT false as exito,'No existe chat' as message; 
+SELECT false as exito,"0" as id,'No existe chat' as message; 
 end if;
 
  END

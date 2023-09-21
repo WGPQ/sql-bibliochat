@@ -55,7 +55,7 @@ CREATE PROCEDURE sp_insertar_frace_intencion (_frace VARCHAR(200) CHARSET utf8mb
 BEGIN
    DECLARE  _id_frace int;
     -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al ingresar el registro: "  message; 
+    DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"0" as id, "Error al ingresar el registro: "  message; 
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
@@ -77,9 +77,9 @@ BEGIN
     
     set _id_frace   = LAST_INSERT_ID();
       
-   SELECT true as exito,  'Registro insertado correctamente' as message; 
+   SELECT true as exito, CONVERT(_id_frace,CHAR) as id,  'Registro insertado correctamente' as message; 
    else
-  SELECT false as exito, 'Error la frace no puede ser asignada a una intencion que no existe' as message; 
+  SELECT false as exito,"0" as id,  'Error la frace no puede ser asignada a una intencion que no existe' as message; 
    end IF;
 
  END
@@ -99,7 +99,7 @@ CREATE PROCEDURE sp_actualizar_frace_intencion (_id_frace INT,_id_intencion INT,
 
 BEGIN
     -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al actualizar el registro"  message; 
+    DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "0" as id,"Error al actualizar el registro"  message; 
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
@@ -115,12 +115,12 @@ BEGIN
         updatedAt=NOW()
      WHERE 
      id=_id_frace;
-        SELECT true as exito,'Registro actualizado correctamente' as message; 
+        SELECT true as exito,CONVERT(_id_frace,CHAR) as id,'Registro actualizado correctamente' as message; 
  else
-SELECT false as exito,'Error la frace no puede ser asignada a una intencion que no existe' as message; 
+SELECT false as exito,"0" as id,'Error la frace no puede ser asignada a una intencion que no existe' as message; 
  end IF;
   else
-   SELECT false as exito, 'El registro que desea actualizar no existe' as message; 
+   SELECT false as exito,"0" as id, 'El registro que desea actualizar no existe' as message; 
   end IF;
 
  END
@@ -173,6 +173,7 @@ BEGIN
  DECLARE _selectQuery varchar(3000);
  DECLARE _auxQuery varchar(300);
  DECLARE _orderBy varchar(300);
+ DECLARE _pagination varchar(300);
 
      -- exit if the duplicate key occurs
  DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
@@ -197,9 +198,14 @@ BEGIN
   else
    SET _orderBy = " ORDER BY fi.id ASC";
   end IF;
+   IF _limit IS NOT NULL AND _limit > 0 then
+   SET _pagination = CONCAT(" LIMIT ",_limit," OFFSET ",_offset);
+  else
+   SET _pagination = " ";
+  end IF;
 
  SET _selectQuery = CONCAT("SELECT CONVERT(fi.id,CHAR) as id,CONVERT(fi.id_intencion,CHAR) as intencion , fi.frace, fi.activo FROM  tbl_frace_intencion fi,tbl_intencion ti   WHERE fi.id_intencion=ti.id AND fi.deletedAt IS NULL",
-  _auxQuery,_orderBy," LIMIT ",_limit," OFFSET ",_offset);
+  _auxQuery,_orderBy,_pagination);
 
   PREPARE stmt1 FROM _selectQuery; 
   EXECUTE stmt1; 
@@ -216,14 +222,14 @@ $$
 
 
 -- ELIMINAR intencion
-DROP PROCEDURE IF EXISTS sp_eliminar_frace_intencion;
+-- DROP PROCEDURE IF EXISTS sp_eliminar_frace_intencion;
 
 DELIMITER $$
 CREATE PROCEDURE sp_eliminar_frace_intencion(_id_frace_intencion int,_deletedBy INT) 
 
 BEGIN   
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al realizar la consulta"  message; 
+ DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "0" as id,"Error al realizar la consulta"  message; 
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
@@ -231,10 +237,10 @@ BEGIN
   END;
   IF (SELECT deletedAt FROM tbl_frace_intencion WHERE id=_id_frace_intencion) IS NULL AND EXISTS(SELECT * FROM tbl_frace_intencion WHERE id=_id_frace_intencion) THEN
  UPDATE tbl_frace_intencion set deletedAt = NOW(),deletedBy=_deletedBy where id= _id_frace_intencion;
- SELECT true as exito, _id_frace_intencion as id,'Registro eliminado correctamente' as message;
+ SELECT true as exito, CONVERT(_id_frace_intencion,CHAR) as id,'Registro eliminado correctamente' as message;
 
  else
-  SELECT false as exito, 'El registro que desea eliminar no existe' as message;
+  SELECT false as exito, "0" as id, 'El registro que desea eliminar no existe' as message;
  end IF;
 
 END 
@@ -265,7 +271,7 @@ BEGIN
        SELECT false as exito,@text message; 
   END; 
 
-  select CONVERT(fi.id,CHAR) as id,CONVERT(fi.id_intencion,CHAR) as intencion ,fi.frace,fi.activo from tbl_frace_intencion fi,tbl_intencion ti WHERE ti.nombre=_intencion AND ti.id=fi.id_intencion AND ti.deletedAt IS NULL AND fi.deletedAt IS NULL AND fi.activo=1  ORDER BY rand() LIMIT 1; 
+  select CONVERT(fi.id,CHAR) as id,CONVERT(fi.id_intencion,CHAR) as intencion ,fi.frace,fi.activo from tbl_frace_intencion fi,tbl_intencion ti WHERE LOWER(ti.nombre)=LOWER(_intencion) AND ti.id=fi.id_intencion AND ti.deletedAt IS NULL AND fi.deletedAt IS NULL AND fi.activo=1  ORDER BY rand() LIMIT 1; 
 
 END;
 $$

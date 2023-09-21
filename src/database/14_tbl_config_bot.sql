@@ -48,10 +48,11 @@ BEGIN
       _hora_fin,
        true,
       _createBy,
-         NOW());      
-   SELECT true as exito, 'Disponibilidad insertada correctamente' as message; 
+         NOW());     
+
+   SELECT true as exito,"0" as id, 'Disponibilidad insertada correctamente' as message; 
 else 
-SELECT false as exito, CONCAT("Ya existe una disponibilidad registrada con el dia: ",_dia)  message; 
+SELECT false as exito,"0" as id, CONCAT("Ya existe una disponibilidad registrada con el dia: ",_dia)  message; 
 end IF;
 
  END
@@ -74,7 +75,7 @@ BEGIN
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
+       SELECT false as exito,"0" as id,@text message; 
   END;
   IF (SELECT deletedAt FROM tbl_disponibilida_bot WHERE id=_id_diponibilidad) IS NULL AND EXISTS(SELECT * FROM tbl_disponibilida_bot WHERE id=_id_diponibilidad) THEN
     IF (SELECT COUNT(id)  FROM tbl_disponibilida_bot WHERE deletedAt IS NULL AND dia=_dia AND id !=_id_diponibilidad) =0 THEN
@@ -88,12 +89,12 @@ BEGIN
      WHERE 
      id=_id_diponibilidad;
       
-   SELECT true as exito,'Registro actualizado correctamente' as message; 
+   SELECT true as exito, CONVERT(_id_diponibilidad,CHAR) as id,'Registro actualizado correctamente' as message; 
    else 
-SELECT false as exito, CONCAT("Ya existe un registro registrado con el nombre: ",_dia)  message; 
+SELECT false as exito, "0" as id, CONCAT("Ya existe un registro registrado con el nombre: ",_dia)  message; 
 end IF;
    else
-   SELECT false as exito, 'El registro que desea actualizar no existe' as message; 
+   SELECT false as exito, "0" as id, 'El registro que desea actualizar no existe' as message; 
    end IF;
 
  END
@@ -143,15 +144,14 @@ BEGIN
        SELECT false as exito,0 as id,@text message; 
   END;
   if(EXISTS(SELECT * from tbl_disponibilida_bot WHERE dia=_dia AND hora_inicio<_hora AND hora_fin>_hora AND activo=1)) THEN
-   SELECT true as disponibilidad;
+   SELECT true as disponibilidad, _dia as dia, _hora as hora;
   else
-   SELECT false as disponibilidad;
+   SELECT false as disponibilidad, _dia as dia, _hora as hora;
   end IF;
 END 
 $$
 -- ejecutar
 -- CALL sp_verificar_disponibilidad ("Martes","11:00");
-
 
 
 

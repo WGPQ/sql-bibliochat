@@ -26,8 +26,9 @@ CREATE PROCEDURE sp_insertar_rol (_nombre VARCHAR(60),_descripcion VARCHAR(80),_
 
 BEGIN
     -- exit if the duplicate key occurs
-  
+  DECLARE _id_rol VARCHAR(50);
    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
        SELECT false as exito,@text message; 
@@ -42,10 +43,11 @@ BEGIN
       (_nombre,
       _descripcion,
       _createBy,
-         NOW());      
-   SELECT true as exito, 'Rol insertado correctamente' as message; 
+         NOW()); 
+         set _id_rol   = LAST_INSERT_ID();     
+   SELECT true as exito, CONVERT(_id_rol,CHAR) as id,'Rol insertado correctamente' as message; 
 else 
-SELECT false as exito, CONCAT("Ya existe un rol registrado con el nombre: ",_nombre)  message; 
+SELECT false as exito,"0" as id, CONCAT("Ya existe un rol registrado con el nombre: ",_nombre)  message; 
 end IF;
 
  END
@@ -80,12 +82,12 @@ BEGIN
      WHERE 
      id=_id_rol;
       
-   SELECT true as exito,'Registro actualizado correctamente' as message; 
+   SELECT true as exito,CONVERT(_id_rol,CHAR) as id,'Registro actualizado correctamente' as message; 
    else 
-SELECT false as exito, CONCAT("Ya existe un rol registrado con el nombre: ",_nombre)  message; 
+SELECT false as exito,"0" as id, CONCAT("Ya existe un rol registrado con el nombre: ",_nombre)  message; 
 end IF;
    else
-   SELECT false as exito, 'El registro que desea actualizar no existe' as message; 
+   SELECT false as exito,"0" as id, 'El registro que desea actualizar no existe' as message; 
    end IF;
 
  END
@@ -104,11 +106,11 @@ CREATE PROCEDURE sp_obtener_rol(_id_rol int)
 
 BEGIN   
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
+ DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"0" as id, "Error al realizar la consulta"  message; 
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,0 as id,@text message; 
+       SELECT false as exito,"0" as id,@text message; 
   END;
  
  SELECT CONVERT(id,CHAR) as id,nombre,descripcion FROM tbl_rol  WHERE id=_id_rol AND deletedAt IS NULL;
@@ -187,7 +189,7 @@ CREATE PROCEDURE sp_eliminar_rol(_id_rol int,_deleteBy int)
 BEGIN   
 DECLARE _nombre_rol VARCHAR(80);
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,  "Error al realizar la consulta"  message; 
+ DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"0" as id,  "Error al realizar la consulta"  message; 
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
@@ -200,12 +202,12 @@ DECLARE _nombre_rol VARCHAR(80);
     IF ( SELECT COUNT(id)  FROM tbl_usuario_rol WHERE deletedAt IS NULL AND id_rol=_id_rol) =0 THEN
 
  UPDATE tbl_rol set deletedAt = NOW(), deletedBy=_deleteBy where id= _id_rol;
- SELECT true as exito, 'Registro eliminado correctamente' as message;
+ SELECT true as exito,CONVERT(_id_rol,CHAR) as id, 'Registro eliminado correctamente' as message;
  else
- SELECT false as exito, CONCAT('No puede eliminar el rol: ',_nombre_rol,' debido a que existen usuarios activos con este tipo de rol.') as message;
+ SELECT false as exito,"0" as id, CONCAT('No puede eliminar el rol: ',_nombre_rol,' debido a que existen usuarios activos con este tipo de rol.') as message;
  end IF;
  else
-  SELECT false as exito, 'El registro que desea eliminar no existe' as message;
+  SELECT false as exito,"0" as id, 'El registro que desea eliminar no existe' as message;
  end IF;
 
 END 

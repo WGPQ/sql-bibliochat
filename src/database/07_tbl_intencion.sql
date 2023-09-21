@@ -1,7 +1,7 @@
 CREATE TABLE tbl_intencion(
   id           INT NOT NULL AUTO_INCREMENT UNIQUE,
 	nombre       VARCHAR(80) NOT NULL,
-	descripcion  VARCHAR(100) NOT NULL,
+	descripcion  VARCHAR(500) NOT NULL,
   createdBy    INT,
   updatedBy    INT,
   deletedBy    INT,
@@ -40,7 +40,7 @@ ADD CONSTRAINT fk_tbl_intencion_tbl_usuario_rol_deleted FOREIGN KEY(deletedBy)
 -- DROP PROCEDURE IF EXISTS sp_insertar_intencion;
 
 DELIMITER $$
-CREATE PROCEDURE sp_insertar_intencion (_nombre VARCHAR(60),_descripcion VARCHAR(80),_createdBy INT)
+CREATE PROCEDURE sp_insertar_intencion (_nombre VARCHAR(100),_descripcion VARCHAR(500),_createdBy INT)
 
 BEGIN
     DECLARE  _id_intencion int;
@@ -48,7 +48,7 @@ BEGIN
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,0 as id,@text message; 
+       SELECT false as exito,"0" as id,@text message; 
   END;
 
       IF (SELECT COUNT(id)  FROM tbl_intencion WHERE deletedAt IS NULL AND nombre=_nombre) =0 THEN
@@ -65,9 +65,9 @@ BEGIN
     
       set _id_intencion   = LAST_INSERT_ID();
       
-   SELECT true as exito, _id_intencion as id, 'Intencion insertada correctamente' as message; 
+   SELECT true as exito, CONVERT(_id_intencion,CHAR) as id, 'Intencion insertada correctamente' as message; 
 else
-SELECT false as exito, 0 as id,CONCAT("Ya existe una intencion registrado con el nombre: ",_nombre)  message; 
+SELECT false as exito, "0" as id,CONCAT("Ya existe una intencion registrado con el nombre: ",_nombre)  message; 
 end IF;
  END
 $$
@@ -82,14 +82,14 @@ $$
 -- DROP PROCEDURE IF EXISTS sp_actualizar_intencion;
 
 DELIMITER $$
-CREATE PROCEDURE sp_actualizar_intencion (_id_intencion INT,_nombre VARCHAR(80),_descripcion VARCHAR(200),_updatedBy INT)
+CREATE PROCEDURE sp_actualizar_intencion (_id_intencion INT,_nombre VARCHAR(100),_descripcion VARCHAR(500),_updatedBy INT)
 
 BEGIN
     -- exit if the duplicate key occurs
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
+       SELECT false as exito,"0" as id,@text message; 
   END;
 
   IF (SELECT deletedAt FROM tbl_intencion WHERE id=_id_intencion) IS NULL AND EXISTS(SELECT * FROM tbl_intencion WHERE id=_id_intencion) THEN
@@ -102,12 +102,12 @@ BEGIN
      WHERE 
      id=_id_intencion;
 
-   SELECT true as exito, 'Registro actualizado correctamente' as message; 
+   SELECT true as exito, CONVERT(_id_intencion,CHAR) as id, 'Registro actualizado correctamente' as message; 
    else
-SELECT false as exito,CONCAT("Ya existe una intencion registrado con el nombre: ",_nombre)  message; 
+SELECT false as exito,"0" as id, CONCAT("Ya existe una intencion registrado con el nombre: ",_nombre)  message; 
 end IF;
   else
-   SELECT false as exito, 'El registro que desea actualizar no existe' as message; 
+   SELECT false as exito,"0" as id, 'El registro que desea actualizar no existe' as message; 
   end IF;
 
  END
@@ -160,6 +160,7 @@ BEGIN
  DECLARE _selectQuery varchar(3000);
  DECLARE _auxQuery varchar(300);
  DECLARE _orderBy varchar(300);
+ DECLARE _pagination varchar(300);
 
      -- exit if the duplicate key occurs
  DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
@@ -180,8 +181,14 @@ BEGIN
    SET _orderBy = " ORDER BY id ASC";
   end IF;
 
+  IF _limit IS NOT NULL AND _limit > 0 then
+   SET _pagination = CONCAT(" LIMIT ",_limit," OFFSET ",_offset);
+  else
+   SET _pagination = " ";
+  end IF;
+
  SET _selectQuery = CONCAT("SELECT CONVERT(id,CHAR) as id, nombre, descripcion FROM tbl_intencion  WHERE deletedAt IS NULL ",
-  _auxQuery,_orderBy," LIMIT ",_limit," OFFSET ",_offset);
+  _auxQuery,_orderBy,_pagination);
 
   PREPARE stmt1 FROM _selectQuery; 
   EXECUTE stmt1; 
@@ -211,20 +218,20 @@ DECLARE _nombre_intencion VARCHAR(80);
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
+       SELECT false as exito,"0" as id,@text message; 
   END;
 IF (SELECT deletedAt FROM tbl_intencion WHERE id=_id_intencion) IS NULL AND EXISTS(SELECT * FROM tbl_intencion WHERE id=_id_intencion) THEN
    SET _nombre_intencion = (SELECT nombre FROM tbl_intencion WHERE id=_id_intencion);
     IF ( SELECT COUNT(id_intencion)  FROM tbl_frace_intencion WHERE deletedAt IS NULL AND id_intencion=_id_intencion) =0 THEN
 
      UPDATE tbl_intencion set deletedAt = NOW(),deletedBy=_deletedBy where id= _id_intencion;
-     SELECT true as exito, _id_intencion as id, 'Registro eliminado correctamente' as message;
+     SELECT true as exito,  CONVERT(_id_intencion, CHAR) as id, 'Registro eliminado correctamente' as message;
 
   else
- SELECT false as exito, CONCAT('No puede eliminar la intencion: ',_nombre_intencion,' debido a que existen faces con este tipo de intencion.') as message;
+ SELECT false as exito,"0" as id, CONCAT('No puede eliminar la intencion: ',_nombre_intencion,' debido a que existen faces con este tipo de intencion.') as message;
  end IF;
  else
-  SELECT false as exito, 'El registro que desea eliminar no existe' as message;
+  SELECT false as exito, "0" as id,'El registro que desea eliminar no existe' as message;
  end IF;
 
 END 

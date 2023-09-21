@@ -100,64 +100,6 @@ $$
 -- CALL sp_crear_chat_usuario (76,95)
 
 
--- listar chat_usuario
--- DROP PROCEDURE IF EXISTS sp_listar_sessiones_usuario;
-
-DELIMITER $$
-CREATE PROCEDURE sp_listar_sessiones_usuario(
-  _id_usuario int,
-  _columna varchar(250),
-  _nombre varchar(250),
-  _offset int,
-  _limit int,
-  _sort VARCHAR(100))
-BEGIN
-
- DECLARE _selectQuery varchar(3000);
- DECLARE _auxQuery varchar(300);
- DECLARE _orderBy varchar(300);
- DECLARE _pagination varchar(300);
-
-     -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
-   
-  IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
-   SET _auxQuery = CONCAT("AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
-  else
-   SET _auxQuery = " ";
-  end IF;
-
-  IF _sort IS NOT NULL AND CHAR_LENGTH(TRIM(_sort))> 0 then
-   SET _orderBy = CONCAT("order by ",TRIM(_sort));
-  else
-   SET _orderBy = " ORDER BY createdAt ASC";
-  end IF;
-  IF _limit IS NOT NULL AND _limit > 0 then
-   SET _pagination = CONCAT(" LIMIT ",_limit," OFFSET ",_offset);
-  else
-   SET _pagination = " ";
-  end IF;
-
- SET _selectQuery = CONCAT("SELECT CONVERT(id,CHAR) as id, CONVERT(id_usuario,CHAR) as id_usuario, inicio, fin  FROM tbl_session  WHERE deletedAt IS NULL "," AND id_usuario = ",_id_usuario,
-  _auxQuery,_orderBy,_pagination);
-
-  PREPARE stmt1 FROM _selectQuery; 
-  EXECUTE stmt1; 
-  DEALLOCATE PREPARE stmt1; 
-
-END
-$$
--- ejecutar
--- CALL sp_listar_sessiones_usuario (1,'', '', 0, 4, null);
-
-
-
-
 SELECT * from tbl_message WHERE id_session = 95
 -- SELECT * FROM `tbl_message` WHERE id_session = 26
 -- SELECT * from tbl_session WHERE id_usuario = 1
@@ -189,5 +131,30 @@ END
 $$
 -- ejecutar
 -- CALL sp_obtener_chats_usuario (2)
+
+
+-- OBTENER chatsultimo_chat_usuario
+-- DROP PROCEDURE IF EXISTS sp_obtener_ultimo_chat_usuario;
+
+DELIMITER $$
+CREATE PROCEDURE sp_obtener_ultimo_chat_usuario(_id_usuario int) 
+
+BEGIN   
+ DECLARE _id_session VARCHAR(10);
+        -- exit if the duplicate key occurs
+ DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION
+   BEGIN
+     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
+       SELECT false as exito,0 as id,@text message; 
+  END;
+ SET _id_session = (SELECT CONVERT(id,CHAR) as id FROM tbl_session WHERE deletedAt IS NULL AND id_usuario = _id_usuario AND inicio=(SELECT MAX(inicio) from tbl_session WHERE id_usuario = _id_usuario)  LIMIT 1);
+
+ SELECT CONVERT(id,CHAR) as id,CONVERT(id_usuario,CHAR) as  id_usuario, CONVERT(id_chat,CHAR) as id_chat, contenido, CONVERT(id_session,CHAR) as id_session, CONVERT(answerBy,CHAR) as answerBy,createdAt FROM tbl_message  WHERE id_session=_id_session;
+
+END 
+$$
+-- ejecutar
+-- CALL sp_obtener_ultimo_chat_usuario (8)
 
 

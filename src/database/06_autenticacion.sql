@@ -60,19 +60,19 @@ BEGIN
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,'0' as id_usuario,@text message; 
+       SELECT false as exito,'0' as id,@text message; 
   END;
 
   IF EXISTS(SELECT * FROM tbl_usuario_rol WHERE id=_id_usuario_rol) THEN
 
-    IF (SELECT activo FROM tbl_usuario_rol WHERE id=_id_usuario_rol AND conectado=1) IS true THEN
+    -- IF (SELECT activo FROM tbl_usuario_rol WHERE id=_id_usuario_rol AND conectado=1) IS true THEN
        UPDATE tbl_usuario_rol SET conectado=0, conectedAt=NOW() WHERE id=_id_usuario_rol;
-    SELECT true as exito, _id_usuario_rol as id_usuario, 'salia exitosa' as message;
-    else
-     SELECT false as exito, '0' as id_usuario,  'No puede salir si no inicio session' as message;
-    end if;
+    SELECT true as exito, CONVERT(_id_usuario_rol,CHAR) as id, 'salia exitosa' as message;
+    -- else
+    --  SELECT false as exito, '0' as id,  'No puede salir si no inicio session' as message;
+    -- end if;
   else
-    SELECT false as exito, '0' as id_usuario, 'usuario no existe' as message;
+    SELECT false as exito, '0' as id, 'usuario no existe' as message;
   end if;
  END
 $$
@@ -96,7 +96,7 @@ BEGIN
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
+       SELECT false as exito,"0" as id,@text message; 
   END;
  SET _id_usuario = (SELECT id_usuario FROM tbl_usuario_rol WHERE id=_id_usuario_rol);
   
@@ -109,10 +109,10 @@ BEGIN
      WHERE 
      id=_id_usuario;
   else
-  SELECT false as exito, 'No se puede resetar debido a que la cuenta se encuentra desactivada' as message; 
+  SELECT false as exito,"0" as id, 'No se puede resetar debido a que la cuenta se encuentra desactivada' as message; 
   end if;
       
-   SELECT true as exito,'Contraseña resetada correctamente' as message; 
+   SELECT true as exito,"0" as id,'Contraseña resetada correctamente' as message; 
 
  END
 $$
@@ -139,7 +139,7 @@ BEGIN
  DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
+       SELECT false as exito,"0" as id,@text message; 
   END;
 
  SET _id_usuario = (SELECT id_usuario FROM tbl_usuario_rol WHERE id=_id_usuario_rol);
@@ -153,10 +153,10 @@ BEGIN
      WHERE 
      id=_id_usuario;
   else
-  SELECT false as exito,'No se puede actualizada la contraseña debido a que la cuenta se encuentra desactivada' as message; 
+  SELECT false as exito,"0"as id,'No se puede actualizada la contraseña debido a que la cuenta se encuentra desactivada' as message; 
   end if;
       
-   SELECT true as exito,'Contraseña actualizada correctamente' as message; 
+   SELECT true as exito,"0" as id,'Contraseña actualizada correctamente' as message; 
 
  END
 $$

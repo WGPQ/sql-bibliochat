@@ -5,6 +5,7 @@ CREATE TABLE tbl_session(
     inicio            TIMESTAMP NULL DEFAULT NULL,
     fin               TIMESTAMP NULL DEFAULT NULL,
     token             VARCHAR(200),
+    calificacion      INT,
     createdBy         INT,
     updatedBy         INT,
     deletedBy         INT,
@@ -73,7 +74,7 @@ BEGIN
          NOW()); 
 
     set _id_session   = LAST_INSERT_ID();          
-   SELECT true as exito, CONCAT('Session insertada correctamente ',_id_session) as message; 
+   SELECT true as exito, "0" as id, CONCAT('Session insertada correctamente ',_id_session) as message; 
 
 
  END
@@ -96,7 +97,7 @@ BEGIN
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
+       SELECT false as exito,"0" as id,@text message; 
   END;
   UPDATE tbl_session SET
         id_usuario=_id_usuario,
@@ -106,13 +107,43 @@ BEGIN
      WHERE 
      id=_id_session;
       
-   SELECT true as exito,'Session actualizada correctamente' as message; 
+   SELECT true as exito,"0" as id,'Session actualizada correctamente' as message; 
 
  END
 $$
 
+
+-- CALIFICAR session
+-- DROP PROCEDURE IF EXISTS sp_calificar_session;
+
+DELIMITER $$
+CREATE PROCEDURE sp_calificar_session (_id_session int, _calificacion int,_updateBy int)
+
+BEGIN
+    -- exit if the duplicate key occurs
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+   BEGIN
+     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
+       SELECT false as exito,"0" as id,@text message; 
+  END;
+  UPDATE tbl_session SET
+        calificacion=_calificacion,
+        fin=NOW(),
+        updatedAt=NOW()
+     WHERE 
+     id=_id_session;
+      
+   SELECT true as exito,"0" as id,'Session calificada correctamente' as message; 
+
+ END
+$$
+
+
+
+
+
 --- ejecutar
--- CALL sp_actualizar_session (1,1,1)
+-- CALL sp_calificar_session (728,1,1)
 
 
 
@@ -139,10 +170,32 @@ $$
 -- CALL sp_obtener_session (1)
 
 
+-- OBTENER rol
+-- DROP PROCEDURE IF EXISTS sp_obtener_last_session;
+
+DELIMITER $$
+CREATE PROCEDURE sp_obtener_last_session(_id_usuario int) 
+
+BEGIN   
+        -- exit if the duplicate key occurs
+ DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION
+   BEGIN
+     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
+       SELECT false as exito,0 as id,@text message; 
+  END;
+ 
+  SELECT CONVERT(id,CHAR) as id, CONVERT(id_usuario,CHAR) as id_usuario, calificacion , inicio, fin  FROM tbl_session  WHERE deletedAt IS NULL AND createdAt= (SELECT MAX(createdAt) FROM tbl_session WHERE id_usuario=_id_usuario);
+END 
+$$
+-- ejecutar
+-- CALL sp_obtener_last_session (1)
+
+
 
 
 -- SELECT listar roles
-DROP PROCEDURE IF EXISTS sp_listar_sessiones;
+-- DROP PROCEDURE IF EXISTS sp_listar_sessiones;
 
 DELIMITER $$
 CREATE PROCEDURE sp_listar_sessiones(
@@ -187,7 +240,7 @@ BEGIN
   IF _id_usuario IS NOT NULL AND _id_usuario > 0 then
    SET _byUser = CONCAT(" WHERE id_usuario= ",_id_usuario);
   else
-   SET _byUser = " ";
+   SET _byUser = "";
   end IF;
 
 
@@ -205,49 +258,67 @@ $$
 
 
 
-
-
-
-
-
-
-
---NO IMPLEMENTADO AUN------------
-
-
--- DELETE rol
--- DROP PROCEDURE IF EXISTS sp_eliminar_rol;
+-- listar chat_usuario
+-- DROP PROCEDURE IF EXISTS sp_listar_sessiones_usuario;
 
 DELIMITER $$
-CREATE PROCEDURE sp_eliminar_rol(_id_rol int,_deleteBy int) 
+CREATE PROCEDURE sp_listar_sessiones_usuario(
+  _id_usuario int,
+  _columna varchar(250),
+  _nombre varchar(250),
+  _offset int,
+  _limit int,
+  _sort VARCHAR(100))
+BEGIN
 
-BEGIN   
-DECLARE _nombre_rol VARCHAR(80);
-        -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,  "Error al realizar la consulta"  message; 
+ DECLARE _selectQuery varchar(3000);
+ DECLARE _auxQuery varchar(300);
+ DECLARE _orderBy varchar(300);
+ DECLARE _pagination varchar(300);
+ DECLARE _byUser varchar(100);
+
+     -- exit if the duplicate key occurs
+ DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
        SELECT false as exito,@text message; 
   END;
-
    
-   IF (SELECT deletedAt FROM tbl_rol WHERE id=_id_rol) IS NULL AND EXISTS(SELECT * FROM tbl_rol WHERE id=_id_rol) THEN
-   SET _nombre_rol =(SELECT nombre FROM tbl_rol WHERE id=_id_rol);
-    IF ( SELECT COUNT(id)  FROM tbl_usuario_rol WHERE deletedAt IS NULL AND id_rol=_id_rol) =0 THEN
+  IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
+   SET _auxQuery = CONCAT("AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
+  else
+   SET _auxQuery = " ";
+  end IF;
 
- UPDATE tbl_rol set deletedAt = NOW(), deletedBy=_deleteBy where id= _id_rol;
- SELECT true as exito, 'Registro eliminado correctamente' as message;
- else
- SELECT false as exito, CONCAT('No puede eliminar el rol: ',_nombre_rol,' debido a que existen usuarios activos con este tipo de rol.') as message;
- end IF;
- else
-  SELECT false as exito, 'El registro que desea eliminar no existe' as message;
- end IF;
+  IF _sort IS NOT NULL AND CHAR_LENGTH(TRIM(_sort))> 0 then
+   SET _orderBy = CONCAT("order by ",TRIM(_sort));
+  else
+   SET _orderBy = " ORDER BY createdAt ASC";
+  end IF;
+  IF _limit IS NOT NULL AND _limit > 0 then
+   SET _pagination = CONCAT(" LIMIT ",_limit," OFFSET ",_offset);
+  else
+   SET _pagination = " ";
+  end IF;
 
-END 
+  IF _id_usuario IS NOT NULL AND _id_usuario > 0 then
+   SET _byUser = CONCAT(" AND id_usuario = ",_id_usuario);
+  else
+   SET _byUser = " ";
+  end IF;
+
+ SET _selectQuery = CONCAT("SELECT CONVERT(id,CHAR) as id, CONVERT(id_usuario,CHAR) as id_usuario, calificacion , inicio, fin  FROM tbl_session  WHERE deletedAt IS NULL",_byUser,
+  _auxQuery,_orderBy,_pagination);
+
+  PREPARE stmt1 FROM _selectQuery; 
+  EXECUTE stmt1; 
+  DEALLOCATE PREPARE stmt1; 
+
+END
 $$
-
-
 -- ejecutar
--- CALL sp_eliminar_rol (2,4)
+-- CALL sp_listar_sessiones_usuario (1,'', '', 0, 4, null);
+
+
+

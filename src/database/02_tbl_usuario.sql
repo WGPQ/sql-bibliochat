@@ -2,7 +2,7 @@
 
 CREATE TABLE tbl_usuario(
   id INT NOT NULL AUTO_INCREMENT UNIQUE,
-  foto              VARCHAR(100),
+  foto              VARCHAR(200) DEFAULT NULL,
 	nombres           VARCHAR(60),
 	apellidos         VARCHAR(60),
   nombre_completo   VARCHAR (120), 
@@ -41,7 +41,7 @@ BEGIN
        SELECT false as exito,@text message; 
   END;
   IF EXISTS(SELECT * FROM tbl_usuario WHERE correo=_correo) THEN
- SELECT false as exito,CONCAT("Ya existe una cuenta registrada con el correo: ",_correo) as message; 
+ SELECT false as exito, "0" as id, CONCAT("Ya existe una cuenta registrada con el correo: ",_correo) as message; 
   else
    IF (SELECT deletedAt FROM tbl_rol WHERE id=_id_rol) IS NULL AND EXISTS(SELECT * FROM tbl_rol WHERE id=_id_rol) THEN  
   SET _rol=(SELECT nombre FROM tbl_rol WHERE id=_id_rol);
@@ -90,9 +90,9 @@ BEGIN
       NOW());
         set _id_usuario_rol   = LAST_INSERT_ID();
       
-   SELECT true as exito,'Registro insertado correctamente' as message; 
+   SELECT true as exito, CONVERT(_id_usuario_rol,CHAR) as id,'Registro insertado correctamente' as message; 
     else
-  SELECT false as exito, 'Error no puede asignar un rol que no existe' as message;
+  SELECT false as exito, "0" as id, 'Error no puede asignar un rol que no existe' as message;
  end IF;
  end IF;
 
@@ -124,7 +124,7 @@ BEGIN
        SELECT false as exito,@text message; 
   END;
     IF EXISTS(SELECT * FROM tbl_usuario u,tbl_usuario_rol ur WHERE u.id=ur.id_usuario AND u.correo=_correo AND ur.id<>_id_usuario_rol) THEN
- SELECT false as exito,CONCAT("Ya existe una cuenta registrada con el correo: ",_correo) as message; 
+ SELECT false as exito,"0" as id, CONCAT("Ya existe una cuenta registrada con el correo: ",_correo) as message; 
   else
   IF (SELECT deletedAt FROM tbl_usuario_rol WHERE id=_id_usuario_rol) IS NULL AND EXISTS(SELECT * FROM tbl_usuario_rol WHERE id=_id_usuario_rol) THEN
  
@@ -146,12 +146,12 @@ BEGIN
      WHERE 
      id=_id_usuario;
 
-   SELECT true as exito,'Registro actualizado correctamente' as message; 
+   SELECT true as exito, CONVERT(_id_usuario_rol,CHAR) as id,'Registro actualizado correctamente' as message; 
   else
-  SELECT false as exito,'Error no puede asignar un rol que no existe' as message;
+  SELECT false as exito,"0" as id,'Error no puede asignar un rol que no existe' as message;
  end IF;
   else
-   SELECT false as exito,'El registro que desea actualizar no existe' as message; 
+   SELECT false as exito,"0" as id,'El registro que desea actualizar no existe' as message; 
   end IF;
   end IF;
 
@@ -180,6 +180,7 @@ BEGIN
  DECLARE _auxQuery varchar(300);
  DECLARE _orderBy varchar(300);
  DECLARE _rolBy varchar(300);
+ DECLARE _pagination varchar(300);
 
      -- exit if the duplicate key occurs
  DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al realizar la consulta"  message; 
@@ -207,8 +208,19 @@ IF _rol IS NOT NULL AND CHAR_LENGTH(TRIM(_rol)) > 0  then
    SET _orderBy = " ORDER BY u.id ASC ";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(ur.id,CHAR) as id , ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo, u.rol, CONVERT(r.id,CHAR) as id_rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE ur.deletedAt IS NULL AND u.deletedAt IS NULL AND u.id=ur.id_usuario AND r.id=ur.id_rol ",
-  _rolBy,_auxQuery,_orderBy," LIMIT ",_limit," OFFSET ",_offset);
+  IF _limit IS NOT NULL AND _limit > 0 then
+   SET _pagination = CONCAT(" LIMIT ",_limit," OFFSET ",_offset);
+  else
+   SET _pagination = " ";
+  end IF;
+
+
+ SET _selectQuery = CONCAT("SELECT CONVERT(ur.id,CHAR) as id , ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, 
+ u.telefono, u.correo, u.rol,CONVERT(r.id,CHAR) as id_rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt,
+ (SELECT calificacion FROM tbl_session WHERE id_usuario =ur.id AND createdAt= (SELECT MAX(createdAt) FROM tbl_session WHERE id_usuario=ur.id)) as calificacion
+  FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE ur.deletedAt IS NULL AND u.deletedAt IS NULL AND 
+  u.id=ur.id_usuario AND r.id=ur.id_rol ",
+  _rolBy,_auxQuery,_orderBy,_pagination);
 
   PREPARE stmt1 FROM _selectQuery; 
   EXECUTE stmt1; 
@@ -217,9 +229,7 @@ IF _rol IS NOT NULL AND CHAR_LENGTH(TRIM(_rol)) > 0  then
 END
 $$
 -- ejecutar
--- CALL sp_listar_usuarios (null, '', '', 0, 14, null);
-
-
+-- CALL sp_listar_usuarios (null, '', '', 0, 0, null);
 
 -- SELECT listar un usuario
 -- DROP PROCEDURE IF EXISTS sp_obtener_usuario;
@@ -237,13 +247,45 @@ BEGIN
   END;
  SET _id_usuario = (SELECT id_usuario FROM tbl_usuario_rol WHERE id=_id_usuario_rol);
 
- SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono, u.correo,u.rol, CONVERT(r.id,CHAR) as id_rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND u.id=_id_usuario AND u.id=ur.id_usuario AND r.id=ur.id_rol;
-
+SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono,
+  u.correo,u.rol, CONVERT(r.id,CHAR) as id_rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt,
+  (SELECT calificacion FROM tbl_session WHERE id_usuario =ur.id AND createdAt= (SELECT MAX(createdAt) FROM tbl_session WHERE id_usuario=ur.id)) as calificacion
+   FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND u.id=_id_usuario
+  AND u.id=ur.id_usuario AND r.id=ur.id_rol;
 END
 $$
 -- ejecutar
 -- CALL sp_obtener_usuario (28);
 
+
+
+
+-- SELECT listar un usuario por correo
+-- DROP PROCEDURE IF EXISTS sp_obtener_usuario_by_correo;
+
+DELIMITER $$
+CREATE PROCEDURE sp_obtener_usuario_by_correo(_correo varchar(100))
+BEGIN
+ DECLARE _id_usuario int;
+      -- exit if the duplicate key occurs
+ DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION
+   BEGIN
+     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
+       SELECT false as exito,@text message; 
+  END;
+
+ SET _id_usuario = (SELECT id_usuario FROM tbl_usuario_rol ur, tbl_usuario u WHERE ur.id_usuario= u.id AND u.correo=_correo);
+
+SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono,
+  u.correo,u.rol, CONVERT(r.id,CHAR) as id_rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt,
+  (SELECT calificacion FROM tbl_session WHERE id_usuario =ur.id AND createdAt= (SELECT MAX(createdAt) FROM tbl_session WHERE id_usuario=ur.id)) as calificacion
+   FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND u.id=_id_usuario
+  AND u.id=ur.id_usuario AND r.id=ur.id_rol;
+END
+$$
+-- ejecutar
+-- CALL sp_obtener_usuario_by_correo ('carlos@utn.edu.ec');
 
 
 
@@ -271,9 +313,9 @@ BEGIN
 
 
  UPDATE tbl_usuario set  deletedAt = NOW(),deletedBy=_deletedBy where id= _id_usuario;
- SELECT true as exito, 'Registro eliminado correctamente' as message;
+ SELECT true as exito, CONVERT(_id_usuario_rol,CHAR) as id, 'Registro eliminado correctamente' as message;
  else
-  SELECT false as exito, 'El registro que desea eliminar no existe' as message;
+  SELECT false as exito, "0" as id, 'El registro que desea eliminar no existe' as message;
  end IF;
 
 END 
