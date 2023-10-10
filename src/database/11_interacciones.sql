@@ -18,13 +18,8 @@ BEGIN
  DECLARE _orderBy varchar(300);
 
      -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al realizar la consulta"  message; 
-
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
 
   IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
    SET _auxQuery = CONCAT(" AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
@@ -38,10 +33,10 @@ BEGIN
    SET _orderBy = " ORDER BY id ASC";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(id,CHAR) as id, CONVERT(id_chat,CHAR) as chat, CONVERT(usuario_created,CHAR) as usuario_created,CONVERT(usuario_interacted,CHAR) as usuario_interacted  FROM tbl_chat_usuario  WHERE deletedAt IS NULL AND usuario_created=",_id_usuario," OR usuario_interacted=",_id_usuario,
+ SET @sql = CONCAT("SELECT CONVERT(id,CHAR) as id, CONVERT(id_chat,CHAR) as chat, CONVERT(usuario_created,CHAR) as usuario_created,CONVERT(usuario_interacted,CHAR) as usuario_interacted  FROM tbl_chat_usuario  WHERE deletedAt IS NULL AND usuario_created=",_id_usuario," OR usuario_interacted=",_id_usuario,
   _auxQuery,_orderBy," LIMIT ",_limit," OFFSET ",_offset);
 
-  PREPARE stmt1 FROM _selectQuery; 
+  PREPARE stmt1 FROM @sql; 
   EXECUTE stmt1; 
   DEALLOCATE PREPARE stmt1; 
 

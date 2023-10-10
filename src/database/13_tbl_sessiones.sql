@@ -55,11 +55,10 @@ BEGIN
 
     DECLARE  _id_session int;
     -- exit if the duplicate key occurs
-   DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+    DECLARE duplicate_key INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
   INSERT INTO tbl_session
         (id_usuario,
         inicio,
@@ -94,11 +93,11 @@ CREATE PROCEDURE sp_actualizar_session (_id_session int,_id_usuario int,_updateB
 
 BEGIN
     -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+     DECLARE duplicate_key INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
   UPDATE tbl_session SET
         id_usuario=_id_usuario,
         fin=NOW(),
@@ -121,11 +120,11 @@ CREATE PROCEDURE sp_calificar_session (_id_session int, _calificacion int,_updat
 
 BEGIN
     -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+     DECLARE duplicate_key INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
   UPDATE tbl_session SET
         calificacion=_calificacion,
         fin=NOW(),
@@ -155,12 +154,8 @@ CREATE PROCEDURE sp_obtener_session(_id_session int)
 
 BEGIN   
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,0 as id,@text message; 
-  END;
+    DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
  
  SELECT * FROM tbl_session  WHERE id=_id_session;
 
@@ -178,12 +173,8 @@ CREATE PROCEDURE sp_obtener_last_session(_id_usuario int)
 
 BEGIN   
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,0 as id,@text message; 
-  END;
+    DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
  
   SELECT CONVERT(id,CHAR) as id, CONVERT(id_usuario,CHAR) as id_usuario, calificacion , inicio, fin  FROM tbl_session  WHERE deletedAt IS NULL AND createdAt= (SELECT MAX(createdAt) FROM tbl_session WHERE id_usuario=_id_usuario);
 END 
@@ -214,12 +205,8 @@ BEGIN
  DECLARE _byUser varchar(100);
 
      -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+   DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
    
   IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
    SET _auxQuery = CONCAT("AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
@@ -244,10 +231,10 @@ BEGIN
   end IF;
 
 
- SET _selectQuery = CONCAT("SELECT * FROM tbl_session ",_byUser,
+ SET @sql = CONCAT("SELECT * FROM tbl_session ",_byUser,
   _auxQuery,_orderBy,_pagination);
 
-  PREPARE stmt1 FROM _selectQuery; 
+  PREPARE stmt1 FROM @sql; 
   EXECUTE stmt1; 
   DEALLOCATE PREPARE stmt1; 
 
@@ -278,12 +265,8 @@ BEGIN
  DECLARE _byUser varchar(100);
 
      -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+    DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
    
   IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
    SET _auxQuery = CONCAT("AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
@@ -308,10 +291,10 @@ BEGIN
    SET _byUser = " ";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(id,CHAR) as id, CONVERT(id_usuario,CHAR) as id_usuario, calificacion , inicio, fin  FROM tbl_session  WHERE deletedAt IS NULL",_byUser,
+ SET @sql = CONCAT("SELECT CONVERT(id,CHAR) as id, CONVERT(id_usuario,CHAR) as id_usuario, calificacion , inicio, fin  FROM tbl_session  WHERE deletedAt IS NULL",_byUser,
   _auxQuery,_orderBy,_pagination);
 
-  PREPARE stmt1 FROM _selectQuery; 
+  PREPARE stmt1 FROM @sql; 
   EXECUTE stmt1; 
   DEALLOCATE PREPARE stmt1; 
 

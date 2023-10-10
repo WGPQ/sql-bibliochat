@@ -55,12 +55,11 @@ CREATE PROCEDURE sp_insertar_frace_intencion (_frace VARCHAR(200) CHARSET utf8mb
 BEGIN
    DECLARE  _id_frace int;
     -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"0" as id, "Error al ingresar el registro: "  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+  DECLARE duplicate_key INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
  IF (SELECT deletedAt FROM tbl_intencion WHERE id=_id_intencion) IS NULL THEN
   INSERT INTO tbl_frace_intencion
         (frace,
@@ -99,12 +98,12 @@ CREATE PROCEDURE sp_actualizar_frace_intencion (_id_frace INT,_id_intencion INT,
 
 BEGIN
     -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "0" as id,"Error al actualizar el registro"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+   DECLARE duplicate_key INT DEFAULT 0; 
+  DECLARE register_foud INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
    IF (SELECT deletedAt FROM tbl_frace_intencion WHERE id=_id_frace) IS NULL AND EXISTS(SELECT * FROM tbl_frace_intencion WHERE id=_id_frace) THEN
    IF (SELECT deletedAt FROM tbl_intencion WHERE id=_id_intencion) IS NULL AND EXISTS(SELECT * FROM tbl_intencion WHERE id=_id_intencion) THEN
   UPDATE tbl_frace_intencion SET
@@ -127,7 +126,7 @@ SELECT false as exito,"0" as id,'Error la frace no puede ser asignada a una inte
 $$
 
 --- ejecutar
--- CALL sp_actualizar_frace_intencion (5,4,'Puma');
+-- CALL sp_actualizar_frace_intencion (17,3,'Puma',1,1);
 
 
 
@@ -141,12 +140,8 @@ CREATE PROCEDURE sp_obtener_frace_intencion(_id_frace_intencion int)
 
 BEGIN   
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END; 
+ DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
  SELECT CONVERT(id,CHAR) as id,CONVERT(id_intencion,CHAR) as intencion ,frace,activo FROM tbl_frace_intencion  WHERE id=_id_frace_intencion AND deletedAt IS NULL;
 
 END 
@@ -176,12 +171,8 @@ BEGIN
  DECLARE _pagination varchar(300);
 
      -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;  
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;  
 
   IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
    IF _columna="intencion" THEN
@@ -204,10 +195,10 @@ BEGIN
    SET _pagination = " ";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(fi.id,CHAR) as id,CONVERT(fi.id_intencion,CHAR) as intencion , fi.frace, fi.activo FROM  tbl_frace_intencion fi,tbl_intencion ti   WHERE fi.id_intencion=ti.id AND fi.deletedAt IS NULL",
+ SET @sql = CONCAT("SELECT CONVERT(fi.id,CHAR) as id,CONVERT(fi.id_intencion,CHAR) as intencion , fi.frace, fi.activo FROM  tbl_frace_intencion fi,tbl_intencion ti   WHERE fi.id_intencion=ti.id AND fi.deletedAt IS NULL",
   _auxQuery,_orderBy,_pagination);
 
-  PREPARE stmt1 FROM _selectQuery; 
+  PREPARE stmt1 FROM @sql; 
   EXECUTE stmt1; 
   DEALLOCATE PREPARE stmt1; 
 
@@ -229,12 +220,8 @@ CREATE PROCEDURE sp_eliminar_frace_intencion(_id_frace_intencion int,_deletedBy 
 
 BEGIN   
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "0" as id,"Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+ DECLARE _rowCount INT;
+
   IF (SELECT deletedAt FROM tbl_frace_intencion WHERE id=_id_frace_intencion) IS NULL AND EXISTS(SELECT * FROM tbl_frace_intencion WHERE id=_id_frace_intencion) THEN
  UPDATE tbl_frace_intencion set deletedAt = NOW(),deletedBy=_deletedBy where id= _id_frace_intencion;
  SELECT true as exito, CONVERT(_id_frace_intencion,CHAR) as id,'Registro eliminado correctamente' as message;
@@ -264,12 +251,8 @@ CREATE PROCEDURE sp_frace_intencion_bot(_intencion varchar(100))
 BEGIN   
 
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END; 
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
 
   select CONVERT(fi.id,CHAR) as id,CONVERT(fi.id_intencion,CHAR) as intencion ,fi.frace,fi.activo from tbl_frace_intencion fi,tbl_intencion ti WHERE LOWER(ti.nombre)=LOWER(_intencion) AND ti.id=fi.id_intencion AND ti.deletedAt IS NULL AND fi.deletedAt IS NULL AND fi.activo=1  ORDER BY rand() LIMIT 1; 
 

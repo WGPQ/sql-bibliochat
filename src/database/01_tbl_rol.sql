@@ -27,13 +27,16 @@ CREATE PROCEDURE sp_insertar_rol (_nombre VARCHAR(60),_descripcion VARCHAR(80),_
 BEGIN
     -- exit if the duplicate key occurs
   DECLARE _id_rol VARCHAR(50);
-   DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  DECLARE duplicate_key INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
 
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
-  IF (SELECT COUNT(id)  FROM tbl_rol WHERE deletedAt IS NULL AND nombre=_nombre) =0 THEN
+  SET duplicate_key = 0;
+  SELECT COUNT(*) INTO duplicate_key FROM tbl_rol WHERE deletedAt IS NULL AND nombre=_nombre; 
+  IF duplicate_key > 0 THEN 
+SELECT false as exito,"0" as id, CONCAT("Ya existe un rol registrado con el nombre: ",_nombre)  message; 
+ELSE 
   INSERT INTO tbl_rol
         (nombre,
         descripcion,
@@ -46,10 +49,7 @@ BEGIN
          NOW()); 
          set _id_rol   = LAST_INSERT_ID();     
    SELECT true as exito, CONVERT(_id_rol,CHAR) as id,'Rol insertado correctamente' as message; 
-else 
-SELECT false as exito,"0" as id, CONCAT("Ya existe un rol registrado con el nombre: ",_nombre)  message; 
 end IF;
-
  END
 $$
 
@@ -66,14 +66,23 @@ DELIMITER $$
 CREATE PROCEDURE sp_actualizar_rol (_id_rol INT,_nombre VARCHAR(80), _descripcion VARCHAR(100),_updateBy int)
 
 BEGIN
-    -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
-  IF (SELECT deletedAt FROM tbl_rol WHERE id=_id_rol) IS NULL AND EXISTS(SELECT * FROM tbl_rol WHERE id=_id_rol) THEN
-    IF (SELECT COUNT(id)  FROM tbl_rol WHERE deletedAt IS NULL AND nombre=_nombre AND id !=_id_rol) =0 THEN
+  -- exit if the duplicate key occurs
+  DECLARE duplicate_key INT DEFAULT 0; 
+  DECLARE register_foud INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
+  SET duplicate_key = 0;
+  SET register_foud = 0;
+
+ -- Verificar si el registro existe
+  SELECT COUNT(*) INTO register_foud FROM tbl_rol WHERE id = _id_rol AND deletedAt IS NULL;
+
+  IF register_foud > 0 THEN
+      SELECT COUNT(*) INTO duplicate_key FROM tbl_rol WHERE nombre = _nombre AND id != _id_rol AND deletedAt IS NULL;
+
+    IF duplicate_key=0 THEN
   UPDATE tbl_rol SET
         nombre=_nombre,
         descripcion=_descripcion,
@@ -105,13 +114,9 @@ DELIMITER $$
 CREATE PROCEDURE sp_obtener_rol(_id_rol int) 
 
 BEGIN   
-        -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"0" as id, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+       
+   DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
  
  SELECT CONVERT(id,CHAR) as id,nombre,descripcion FROM tbl_rol  WHERE id=_id_rol AND deletedAt IS NULL;
 
@@ -124,7 +129,7 @@ $$
 
 
 -- SELECT listar roles
-DROP PROCEDURE IF EXISTS sp_listar_roles;
+-- DROP PROCEDURE IF EXISTS sp_listar_roles;
 
 DELIMITER $$
 CREATE PROCEDURE sp_listar_roles(
@@ -141,12 +146,8 @@ BEGIN
  DECLARE _pagination varchar(300);
 
      -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
    
   IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
    SET _auxQuery = CONCAT("AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
@@ -165,10 +166,10 @@ BEGIN
    SET _pagination = " ";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(id,CHAR) as id, nombre, descripcion FROM tbl_rol  WHERE deletedAt IS NULL ",
+ SET @sql = CONCAT("SELECT CONVERT(id,CHAR) as id, nombre, descripcion FROM tbl_rol  WHERE deletedAt IS NULL ",
   _auxQuery,_orderBy,_pagination);
 
-  PREPARE stmt1 FROM _selectQuery; 
+  PREPARE stmt1 FROM @sql; 
   EXECUTE stmt1; 
   DEALLOCATE PREPARE stmt1; 
 
@@ -182,41 +183,38 @@ $$
 
 -- DELETE rol
 -- DROP PROCEDURE IF EXISTS sp_eliminar_rol;
-
 DELIMITER $$
-CREATE PROCEDURE sp_eliminar_rol(_id_rol int,_deleteBy int) 
 
-BEGIN   
-DECLARE _nombre_rol VARCHAR(80);
-        -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"0" as id,  "Error al realizar la consulta"  message; 
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+CREATE PROCEDURE sp_eliminar_rol(_id_rol INT, _deleteBy INT)
+BEGIN
+  DECLARE _nombre_rol VARCHAR(80);
+  DECLARE _rowCount INT;
+  
+  SELECT nombre INTO _nombre_rol FROM tbl_rol WHERE id = _id_rol;
+  
+  -- Verificar si el rol existe
+  SELECT COUNT(*) INTO _rowCount FROM tbl_rol WHERE id = _id_rol;
+  
+  IF _rowCount > 0 THEN
+    -- Verificar si no hay usuarios activos con este rol
+    SELECT COUNT(*) INTO _rowCount FROM tbl_usuario_rol WHERE deletedAt IS NULL AND id_rol = _id_rol;
+    
+    IF _rowCount = 0 THEN
+      -- Eliminar el rol
+      UPDATE tbl_rol SET deletedAt = NOW(), deletedBy = _deleteBy WHERE id = _id_rol;
+      SELECT TRUE AS exito, CONVERT(_id_rol, CHAR) AS id, 'Registro eliminado correctamente' AS message;
+    ELSE
+      SELECT FALSE AS exito, "0" AS id, CONCAT('No puede eliminar el rol: ', _nombre_rol, ' debido a que existen usuarios activos con este tipo de rol.') AS message;
+    END IF;
+  ELSE
+    SELECT FALSE AS exito, "0" AS id, 'El registro que desea eliminar no existe' AS message;
+  END IF;
+END $$
 
-   
-   IF (SELECT deletedAt FROM tbl_rol WHERE id=_id_rol) IS NULL AND EXISTS(SELECT * FROM tbl_rol WHERE id=_id_rol) THEN
-   SET _nombre_rol =(SELECT nombre FROM tbl_rol WHERE id=_id_rol);
-    IF ( SELECT COUNT(id)  FROM tbl_usuario_rol WHERE deletedAt IS NULL AND id_rol=_id_rol) =0 THEN
+DELIMITER ;
 
- UPDATE tbl_rol set deletedAt = NOW(), deletedBy=_deleteBy where id= _id_rol;
- SELECT true as exito,CONVERT(_id_rol,CHAR) as id, 'Registro eliminado correctamente' as message;
- else
- SELECT false as exito,"0" as id, CONCAT('No puede eliminar el rol: ',_nombre_rol,' debido a que existen usuarios activos con este tipo de rol.') as message;
- end IF;
- else
-  SELECT false as exito,"0" as id, 'El registro que desea eliminar no existe' as message;
- end IF;
-
-END 
-$$
 
 
 -- ejecutar
 -- CALL sp_eliminar_rol (2,4)
-
-
-
 

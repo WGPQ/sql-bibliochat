@@ -12,10 +12,10 @@ CREATE TABLE tbl_calificacion(
     CONSTRAINT pk_tbl_calificacion PRIMARY KEY (id)
 );
 
-ALTER TABLE tbl_calificacion_sesion(
+CREATE TABLE tbl_calificacion_sesion(
     id               INT NOT NULL AUTO_INCREMENT UNIQUE,
     id_sesion        INT NOT NULL,
-	  id_calificacion  INT NOT NULL,
+	id_calificacion  INT NOT NULL,
     createdBy        INT,
     updatedBy        INT,
     deletedBy        INT,
@@ -30,7 +30,7 @@ ALTER TABLE tbl_calificacion_sesion(
 -- TABLE tbl_calificacion_sesion
 ALTER TABLE tbl_calificacion_sesion
 ADD CONSTRAINT fk_tbl_calificacion_sesion_tbl_sesion FOREIGN KEY(id_sesion)
-	REFERENCES tbl_sesion(id)
+	REFERENCES tbl_session(id)
 	ON UPDATE restrict
 	ON DELETE restrict;
 
