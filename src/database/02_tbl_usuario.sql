@@ -188,7 +188,7 @@ BEGIN
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
    BEGIN
      GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
+       SELECT false as exito,0 as id ,@text message; 
   END;
 IF _rol IS NOT NULL AND CHAR_LENGTH(TRIM(_rol)) > 0  then
    SET _rolBy = CONCAT("AND r.id=",TRIM(_rol));
@@ -217,7 +217,7 @@ IF _rol IS NOT NULL AND CHAR_LENGTH(TRIM(_rol)) > 0  then
 
  SET _selectQuery = CONCAT("SELECT CONVERT(ur.id,CHAR) as id , ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, 
  u.telefono, u.correo, u.rol,CONVERT(r.id,CHAR) as id_rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt,
- (SELECT calificacion FROM tbl_session WHERE id_usuario =ur.id AND createdAt= (SELECT MAX(createdAt) FROM tbl_session WHERE id_usuario=ur.id)) as calificacion
+ (SELECT calificacion FROM tbl_session WHERE id_usuario =ur.id AND createdAt= (SELECT MAX(createdAt) FROM tbl_session WHERE id_usuario=ur.id) LIMIT 1) as calificacion
   FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE ur.deletedAt IS NULL AND u.deletedAt IS NULL AND 
   u.id=ur.id_usuario AND r.id=ur.id_rol ",
   _rolBy,_auxQuery,_orderBy,_pagination);
@@ -249,7 +249,7 @@ BEGIN
 
 SELECT CONVERT(ur.id,CHAR) as id, ur.verificado, u.foto, u.nombres, u.apellidos, u.nombre_completo, u.telefono,
   u.correo,u.rol, CONVERT(r.id,CHAR) as id_rol, ur.activo as activo, ur.conectado as conectado, ur.conectedAt as conectedAt,
-  (SELECT calificacion FROM tbl_session WHERE id_usuario =ur.id AND createdAt= (SELECT MAX(createdAt) FROM tbl_session WHERE id_usuario=ur.id)) as calificacion
+  (SELECT calificacion FROM tbl_session WHERE id_usuario =ur.id AND createdAt= (SELECT MAX(createdAt) FROM tbl_session WHERE id_usuario=ur.id) LIMIT 1) as calificacion
    FROM tbl_usuario u, tbl_rol r, tbl_usuario_rol ur WHERE u.deletedAt IS NULL AND ur.deletedAt IS NULL AND u.id=_id_usuario
   AND u.id=ur.id_usuario AND r.id=ur.id_rol;
 END
