@@ -44,12 +44,9 @@ CREATE PROCEDURE sp_insertar_intencion (_nombre VARCHAR(100),_descripcion VARCHA
 
 BEGIN
     DECLARE  _id_intencion int;
-    -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+     -- exit if the duplicate key occurs
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
 
       IF (SELECT COUNT(id)  FROM tbl_intencion WHERE deletedAt IS NULL AND nombre=_nombre) =0 THEN
   INSERT INTO tbl_intencion
@@ -85,12 +82,9 @@ DELIMITER $$
 CREATE PROCEDURE sp_actualizar_intencion (_id_intencion INT,_nombre VARCHAR(100),_descripcion VARCHAR(500),_updatedBy INT)
 
 BEGIN
-    -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+      -- exit if the duplicate key occurs
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
 
   IF (SELECT deletedAt FROM tbl_intencion WHERE id=_id_intencion) IS NULL AND EXISTS(SELECT * FROM tbl_intencion WHERE id=_id_intencion) THEN
         IF (SELECT COUNT(id)  FROM tbl_intencion WHERE deletedAt IS NULL AND nombre=_nombre AND id !=_id_intencion) =0 THEN
@@ -126,13 +120,10 @@ DELIMITER $$
 CREATE PROCEDURE sp_obtener_intencion(_id_intencion int) 
 
 BEGIN   
-        -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito, 0 as id,@text message; 
-  END;
+       -- exit if the duplicate key occurs
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
+
  SELECT CONVERT(id,CHAR) as id,nombre,descripcion FROM tbl_intencion  WHERE id=_id_intencion AND deletedAt IS NULL;
 
 END 
@@ -162,13 +153,11 @@ BEGIN
  DECLARE _orderBy varchar(300);
  DECLARE _pagination varchar(300);
 
-     -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,0 as id,@text message; 
-  END;   
+    -- exit if the duplicate key occurs
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
+
+
   IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
    SET _auxQuery = CONCAT("AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
   else
@@ -212,14 +201,7 @@ CREATE PROCEDURE sp_eliminar_intencion(_id_intencion int,_deletedBy INT)
 
 BEGIN   
 DECLARE _nombre_intencion VARCHAR(80);
-        -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
-
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+    
 IF (SELECT deletedAt FROM tbl_intencion WHERE id=_id_intencion) IS NULL AND EXISTS(SELECT * FROM tbl_intencion WHERE id=_id_intencion) THEN
    SET _nombre_intencion = (SELECT nombre FROM tbl_intencion WHERE id=_id_intencion);
     IF ( SELECT COUNT(id_intencion)  FROM tbl_frace_intencion WHERE deletedAt IS NULL AND id_intencion=_id_intencion) =0 THEN

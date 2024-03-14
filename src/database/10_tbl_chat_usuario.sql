@@ -65,11 +65,14 @@ CREATE PROCEDURE sp_crear_chat_usuario(_id_usuario_created INT,_id_usuario_inter
 BEGIN
  DECLARE _id_chat VARCHAR(10);
    -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+DECLARE duplicate_key INT DEFAULT 0; 
+  DECLARE register_foud INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
+  SET duplicate_key = 0;
+  SET register_foud = 0;
 
  IF EXISTS(SELECT * FROM tbl_chat_usuario WHERE usuario_created=_id_usuario_created  AND usuario_interacted=_id_usuario_interacted) THEN
    SELECT CONVERT(id_chat,CHAR)  as id_chat FROM tbl_chat_usuario WHERE usuario_created=_id_usuario_created AND usuario_interacted=_id_usuario_interacted;
@@ -117,15 +120,10 @@ DELIMITER $$
 CREATE PROCEDURE sp_obtener_chats_usuario(_id_session int) 
 
 BEGIN   
-        -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,0 as id,@text message; 
-  END;
+ DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
  
- SELECT CONVERT(id,CHAR) as id,CONVERT(id_usuario,CHAR) as  id_usuario, CONVERT(id_chat,CHAR) as id_chat, contenido, CONVERT(id_session,CHAR) as id_session, CONVERT(answerBy,CHAR) as answerBy,createdAt FROM tbl_message  WHERE id_session=_id_session;
+ SELECT CONVERT(id,CHAR) as id,CONVERT(id_usuario,CHAR) as  id_usuario, CONVERT(id_chat,CHAR) as id_chat, contenido, CONVERT(id_session,CHAR) as id_session,createdAt FROM tbl_message  WHERE id_session=_id_session;
 
 END 
 $$
@@ -142,15 +140,12 @@ CREATE PROCEDURE sp_obtener_ultimo_chat_usuario(_id_usuario int)
 BEGIN   
  DECLARE _id_session VARCHAR(10);
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,0 as id,@text message; 
-  END;
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
  SET _id_session = (SELECT CONVERT(id,CHAR) as id FROM tbl_session WHERE deletedAt IS NULL AND id_usuario = _id_usuario AND inicio=(SELECT MAX(inicio) from tbl_session WHERE id_usuario = _id_usuario)  LIMIT 1);
 
- SELECT CONVERT(id,CHAR) as id,CONVERT(id_usuario,CHAR) as  id_usuario, CONVERT(id_chat,CHAR) as id_chat, contenido, CONVERT(id_session,CHAR) as id_session, CONVERT(answerBy,CHAR) as answerBy,createdAt FROM tbl_message  WHERE id_session=_id_session;
+ SELECT CONVERT(id,CHAR) as id,CONVERT(id_usuario,CHAR) as  id_usuario, CONVERT(id_chat,CHAR) as id_chat, contenido, CONVERT(id_session,CHAR) as id_session,createdAt FROM tbl_message  WHERE id_session=_id_session;
 
 END 
 $$

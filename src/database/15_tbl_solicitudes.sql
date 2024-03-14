@@ -57,12 +57,12 @@ CREATE PROCEDURE sp_insertar_solicitud (_solicitante INT,_reaccion INT,_id_sessi
 BEGIN
     -- exit if the duplicate key occurs
   DECLARE _id_solicitud VARCHAR(50);
-   DECLARE EXIT HANDLER FOR SQLEXCEPTION
+   DECLARE duplicate_key INT DEFAULT 0; 
+  DECLARE register_foud INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
 
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
   IF (SELECT COUNT(id)  FROM tbl_solicitudes WHERE deletedAt IS NULL AND id_session=_id_session) =0 THEN
   INSERT INTO tbl_solicitudes
         (solicitante,
@@ -90,7 +90,7 @@ end IF;
 $$
 
 --- ejecutar
--- CALL sp_insertar_solicitud (1,19,128,1,1);
+-- CALL sp_insertar_solicitud (1,19,128,1,1,1);
 
 
 
@@ -103,11 +103,12 @@ CREATE PROCEDURE sp_actualizar_solicitud (_id_solicitud INT,_reaccion INT,_id_se
 
 BEGIN
     -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+    DECLARE duplicate_key INT DEFAULT 0; 
+  DECLARE register_foud INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
   IF (SELECT deletedAt FROM tbl_solicitudes WHERE id=_id_solicitud) IS NULL AND EXISTS(SELECT * FROM tbl_solicitudes WHERE id=_id_solicitud) THEN
     IF (SELECT COUNT(id)  FROM tbl_solicitudes WHERE deletedAt IS NULL AND id_session=_id_session AND id !=_id_solicitud) =0 THEN
   UPDATE tbl_solicitudes SET
@@ -144,11 +145,12 @@ CREATE PROCEDURE sp_reaccionar_solicitud (_id_solicitud INT,_id_reaccion INT,_ac
 
 BEGIN
     -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+        DECLARE duplicate_key INT DEFAULT 0; 
+  DECLARE register_foud INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
   IF (SELECT deletedAt FROM tbl_solicitudes WHERE id=_id_solicitud) IS NULL AND EXISTS(SELECT * FROM tbl_solicitudes WHERE id=_id_solicitud) THEN
   UPDATE tbl_solicitudes SET
         reaccion=_id_reaccion,
@@ -185,12 +187,8 @@ CREATE PROCEDURE sp_obtener_solicitudes(_id_solicitud int)
 
 BEGIN   
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"0" as id, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+    DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
  
  SELECT CONVERT(id,CHAR) as id, CONVERT(solicitante,CHAR) as solicitante, CONVERT(reaccion,CHAR) as reaccion, CONVERT(id_session,CHAR) as session, accion, conversationId, createdAt  FROM tbl_solicitudes  WHERE id=_id_solicitud AND deletedAt IS NULL;
 
@@ -224,12 +222,8 @@ BEGIN
  DECLARE _filterMoth varchar(200);
 
      -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+   DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
    
   IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
    SET _auxQuery = CONCAT("AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
@@ -258,10 +252,10 @@ BEGIN
    SET _filterMoth = " ";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(id,CHAR) as id, CONVERT(solicitante,CHAR) as solicitante, CONVERT(reaccion,CHAR) as reaccion, CONVERT(id_session,CHAR) as session, accion, conversationId, createdAt  FROM tbl_solicitudes  WHERE deletedAt IS NULL ",
+ SET @sql = CONCAT("SELECT CONVERT(id,CHAR) as id, CONVERT(solicitante,CHAR) as solicitante, CONVERT(reaccion,CHAR) as reaccion, CONVERT(id_session,CHAR) as session, accion, conversationId, createdAt  FROM tbl_solicitudes  WHERE deletedAt IS NULL ",
   _filterMoth,_auxQuery,_filterYear,_orderBy,_pagination);
 
-  PREPARE stmt1 FROM _selectQuery; 
+  PREPARE stmt1 FROM @sql; 
   EXECUTE stmt1; 
   DEALLOCATE PREPARE stmt1; 
 

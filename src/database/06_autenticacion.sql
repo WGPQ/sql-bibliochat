@@ -7,11 +7,9 @@ DELIMITER $$
 CREATE PROCEDURE sp_login(_correo VARCHAR(60),_clave VARCHAR(80))
 BEGIN
  DECLARE _id_usuario_rol VARCHAR(12);
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,'0' as id_usuario,@text message; 
-  END;
+      -- exit if the duplicate key occurs
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
 
   IF EXISTS(SELECT * FROM tbl_usuario WHERE correo = _correo) THEN
    IF(_clave IS NOT NULL AND CHAR_LENGTH(TRIM(_clave)) > 0)THEN  
@@ -57,11 +55,9 @@ $$
 DELIMITER $$
 CREATE PROCEDURE sp_logout(_id_usuario_rol int)
 BEGIN
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,'0' as id,@text message; 
-  END;
+      -- exit if the duplicate key occurs
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
 
   IF EXISTS(SELECT * FROM tbl_usuario_rol WHERE id=_id_usuario_rol) THEN
 
@@ -92,12 +88,10 @@ CREATE PROCEDURE sp_resetear_contrasenia (_id_usuario_rol INT,_clave VARCHAR(80)
 
 BEGIN
   DECLARE _id_usuario int;   
-  -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+      -- exit if the duplicate key occurs
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
+
  SET _id_usuario = (SELECT id_usuario FROM tbl_usuario_rol WHERE id=_id_usuario_rol);
   
   IF (SELECT activo FROM tbl_usuario_rol WHERE id_usuario=_id_usuario) IS true THEN
@@ -120,7 +114,7 @@ $$
 
 -- ejecutar
 
--- CALL sp_resetear_contrasenia(77,'f2QOF27UTi','BIBLIOBOTUNIVERSIDADTENICADELNORTEIBARRA');
+-- CALL sp_resetear_contrasenia(1,'f2QOF27UTi',1);
 
 
 

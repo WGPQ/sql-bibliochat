@@ -30,12 +30,11 @@ CREATE PROCEDURE sp_insertar_comentario (_contenido VARCHAR(800),_correo VARCHAR
 BEGIN
     -- exit if the duplicate key occurs
   DECLARE _id_comentario VARCHAR(50);
-   DECLARE EXIT HANDLER FOR SQLEXCEPTION
-
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+  DECLARE duplicate_key INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+  
   INSERT INTO tbl_comentario
         (contenido,
         correo,
@@ -53,7 +52,7 @@ BEGIN
 $$
 
 --- ejecutar
--- CALL sp_insertar_comentario ("Me parece un buen servicio que chevere!!! ","dwilgeo95@gmail.com")
+-- CALL sp_insertar_comentario ("Me parece un buen servicio que chevere!!! ","dwilgeo95@gmail.com",1)
 
 
 
@@ -74,12 +73,8 @@ BEGIN
  DECLARE _pagination varchar(300);
 
      -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
    
   IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
    SET _auxQuery = CONCAT("AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
@@ -98,10 +93,10 @@ BEGIN
    SET _pagination = " ";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(id,CHAR) as id, contenido, CONVERT(id_session,CHAR) as session, correo, createdAt  FROM tbl_comentario  WHERE deletedAt IS NULL ",
+ SET @sql = CONCAT("SELECT CONVERT(id,CHAR) as id, contenido, CONVERT(id_session,CHAR) as session, correo, createdAt  FROM tbl_comentario  WHERE deletedAt IS NULL ",
   _auxQuery,_orderBy,_pagination);
 
-  PREPARE stmt1 FROM _selectQuery; 
+  PREPARE stmt1 FROM @sql; 
   EXECUTE stmt1; 
   DEALLOCATE PREPARE stmt1; 
 

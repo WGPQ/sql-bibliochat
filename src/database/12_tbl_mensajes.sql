@@ -73,11 +73,11 @@ CREATE PROCEDURE sp_crear_mensaje(_id_usuario_rol INT,_id_chat INT,_contenido VA
 BEGIN
 DECLARE _id_message VARCHAR(10);
 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito, "0" as id, @text message; 
-  END;
+   DECLARE duplicate_key INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
  IF EXISTS (SELECT * FROM tbl_chat WHERE id=_id_chat AND deletedAt IS NULL) THEN
    INSERT INTO
      tbl_message(
@@ -130,12 +130,9 @@ BEGIN
  DECLARE _orderBy varchar(300);
 
      -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;   
+   DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;  
+
   IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
    SET _auxQuery = CONCAT(" AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
   else
@@ -148,10 +145,10 @@ BEGIN
    SET _orderBy = " ORDER BY id ASC";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(id,CHAR) as id, CONVERT(id_chat,CHAR) as id_chat, CONVERT(id_usuario,CHAR) as id_usuario, contenido,CONVERT(id_session,CHAR) as id_session ,CONVERT(answerBy,CHAR) as answerBy,createdAt FROM tbl_message  WHERE deletedAt IS NULL AND id_chat=",_id_chat,
+ SET @sql = CONCAT("SELECT CONVERT(id,CHAR) as id, CONVERT(id_chat,CHAR) as id_chat, CONVERT(id_usuario,CHAR) as id_usuario, contenido,CONVERT(id_session,CHAR) as id_session ,createdAt FROM tbl_message  WHERE deletedAt IS NULL AND id_chat=",_id_chat,
   _auxQuery,_orderBy," LIMIT ",_limit," OFFSET ",_offset);
 
-  PREPARE stmt1 FROM _selectQuery; 
+  PREPARE stmt1 FROM @sql; 
   EXECUTE stmt1; 
   DEALLOCATE PREPARE stmt1; 
 
@@ -173,18 +170,14 @@ CREATE PROCEDURE sp_obtener_ultimo_mensaje(_id_chat int)
 BEGIN
 
      -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,"Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
-SELECT CONVERT(id,CHAR) as id, CONVERT(id_chat,CHAR) as id_chat, CONVERT(id_usuario,CHAR) as id_usuario, contenido,CONVERT(id_session,CHAR) as id_session ,CONVERT(answerBy,CHAR) as answerBy,createdAt FROM tbl_message  WHERE deletedAt IS NULL AND id_chat=_id_chat;
+    DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
+SELECT CONVERT(id,CHAR) as id, CONVERT(id_chat,CHAR) as id_chat, CONVERT(id_usuario,CHAR) as id_usuario, contenido,CONVERT(id_session,CHAR) as id_session ,createdAt FROM tbl_message  WHERE deletedAt IS NULL AND id_chat=_id_chat;
 
 
 END
 $$
 
 -- ejecutar
--- CALL sp_mensajes_nuevos (19);
+-- CALL sp_obtener_ultimo_mensaje (19);
 

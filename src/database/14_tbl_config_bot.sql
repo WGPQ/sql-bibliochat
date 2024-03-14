@@ -29,11 +29,11 @@ CREATE PROCEDURE sp_insertar_disponibilida (_dia VARCHAR(20),_hora_inicio VARCHA
 BEGIN
     -- exit if the duplicate key occurs
   
-   DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+    DECLARE duplicate_key INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
   IF (SELECT COUNT(id)  FROM tbl_disponibilida_bot WHERE deletedAt IS NULL AND dia=_dia) =0 THEN
   INSERT INTO tbl_disponibilida_bot
         (dia,
@@ -72,11 +72,12 @@ CREATE PROCEDURE sp_actualizar_disponibilidad (_id_diponibilidad INT,_dia VARCHA
 
 BEGIN
     -- exit if the duplicate key occurs
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,"0" as id,@text message; 
-  END;
+    DECLARE duplicate_key INT DEFAULT 0; 
+  DECLARE register_foud INT DEFAULT 0;     
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR 1062 SET duplicate_key = 1;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
   IF (SELECT deletedAt FROM tbl_disponibilida_bot WHERE id=_id_diponibilidad) IS NULL AND EXISTS(SELECT * FROM tbl_disponibilida_bot WHERE id=_id_diponibilidad) THEN
     IF (SELECT COUNT(id)  FROM tbl_disponibilida_bot WHERE deletedAt IS NULL AND dia=_dia AND id !=_id_diponibilidad) =0 THEN
   UPDATE tbl_disponibilida_bot SET
@@ -113,12 +114,8 @@ CREATE PROCEDURE sp_obtener_disponibilidad(_id_disponibilidad int)
 
 BEGIN   
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,0 as id,@text message; 
-  END;
+   DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
  
  SELECT CONVERT(id,CHAR) as id,dia,hora_inicio,hora_fin,activo FROM tbl_disponibilida_bot  WHERE id=_id_disponibilidad AND deletedAt IS NULL;
 
@@ -137,12 +134,9 @@ CREATE PROCEDURE sp_verificar_disponibilidad(_dia VARCHAR(80), _hora VARCHAR(100
 
 BEGIN   
         -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito,0 as id, "Error al realizar la consulta"  message; 
- DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,0 as id,@text message; 
-  END;
+   DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1; 
+
   if(EXISTS(SELECT * from tbl_disponibilida_bot WHERE dia=_dia AND hora_inicio<_hora AND hora_fin>_hora AND activo=1)) THEN
    SELECT true as disponibilidad, _dia as dia, _hora as hora;
   else
@@ -156,7 +150,7 @@ $$
 
 
 -- SELECT listar disponiblidad
-DROP PROCEDURE IF EXISTS sp_listar_disponiblidad;
+-- DROP PROCEDURE IF EXISTS sp_listar_disponiblidad;
 
 DELIMITER $$
 CREATE PROCEDURE sp_listar_disponiblidad(
@@ -173,12 +167,8 @@ BEGIN
  DECLARE _pagination varchar(300);
 
      -- exit if the duplicate key occurs
- DECLARE EXIT HANDLER FOR 1062 SELECT false as exito, "Error al realizar la consulta"  message; 
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-   BEGIN
-     GET DIAGNOSTICS CONDITION 1  @text = MESSAGE_TEXT;
-       SELECT false as exito,@text message; 
-  END;
+  DECLARE sql_exception INT DEFAULT 0;     
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET sql_exception = 1;
    
   IF _nombre IS NOT NULL AND CHAR_LENGTH(TRIM(_nombre)) > 0 AND _columna IS NOT NULL AND CHAR_LENGTH(TRIM(_columna)) > 0 then
    SET _auxQuery = CONCAT("AND ",TRIM(_columna)," like '%",TRIM(_nombre),"%'");
@@ -197,10 +187,10 @@ BEGIN
    SET _pagination = " ";
   end IF;
 
- SET _selectQuery = CONCAT("SELECT CONVERT(id,CHAR) as id,dia,hora_inicio,hora_fin,activo FROM tbl_disponibilida_bot  WHERE deletedAt IS NULL ",
+ SET @sql = CONCAT("SELECT CONVERT(id,CHAR) as id,dia,hora_inicio,hora_fin,activo FROM tbl_disponibilida_bot  WHERE deletedAt IS NULL ",
   _auxQuery,_orderBy,_pagination);
 
-  PREPARE stmt1 FROM _selectQuery; 
+  PREPARE stmt1 FROM @sql; 
   EXECUTE stmt1; 
   DEALLOCATE PREPARE stmt1; 
 
